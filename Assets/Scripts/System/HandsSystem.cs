@@ -79,7 +79,7 @@ public class HandsSystem
             hands.CardList[hands.DrawCount].DescriptionText.text = cardList[i].Description;
 
             hands.CardList[hands.DrawCount].gameObject.SetActive(true);
-            Debug.Log(hands.CardList[hands.DrawCount].Title + "を手札に追加");
+            hands.CardList[hands.DrawCount].transform.position = deckTransform.position;
 
             DrawEffectComponent drawEffect = hands.CardList[hands.DrawCount].gameObject.GetComponent<DrawEffectComponent>();
             hands.DrawEffectList.Add(DrawEffect(drawEffect));

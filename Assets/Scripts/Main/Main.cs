@@ -8,6 +8,7 @@ public class Main : MonoBehaviour
     [SerializeField] GameObject enemy;
     [SerializeField] GameObject deck;
     [SerializeField] GameObject hands;
+    [SerializeField] GameObject trash;
 
     private GameEvent gameEvent;
     private ObjectPool objectPool;
@@ -37,7 +38,7 @@ public class Main : MonoBehaviour
 
         damageSystem = new DamageSystem(gameEvent, objectPool, movement);
         // カード
-        cardSelectSystem = new CardSelectSystem(gameEvent, player, enemy);
+        cardSelectSystem = new CardSelectSystem(gameEvent, movement, objectPool, player, enemy, trash.transform);
         deckSystem = new DeckSystem(gameEvent);
         drawSystem = new DrawSystem(gameEvent);
         handsSystem = new HandsSystem(gameEvent, player, deck.transform);
@@ -48,7 +49,7 @@ public class Main : MonoBehaviour
         // turn
         turnSystem = new TurnSystem(gameEvent, player);
         startTurnSystem = new StartTurnSystem(gameEvent, player);
-        enemyAttackSystem = new EnemyAttackSystem(gameEvent, player);
+        enemyAttackSystem = new EnemyAttackSystem(gameEvent, objectPool, player);
         turnEndSystem = new TurnEndSystem(gameEvent);
 
         gameEvent.AddComponentList?.Invoke(player);

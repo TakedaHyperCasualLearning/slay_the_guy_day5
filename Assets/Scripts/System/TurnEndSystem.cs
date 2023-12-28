@@ -34,6 +34,8 @@ public class TurnEndSystem
         }
     }
 
+
+
     private void AddComponentList(GameObject gameObject)
     {
         TurnComponent turn = gameObject.GetComponent<TurnComponent>();

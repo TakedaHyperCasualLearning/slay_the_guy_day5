@@ -1,20 +1,29 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.PlayerLoop;
 
 public class CardSelectSystem
 {
+    private GameEvent gameEvent;
     private GameObject playerObject;
     private GameObject enemyObject;
+    private Movement movement;
+    private ObjectPool objectPool;
+    private Transform trashTransform;
     private List<CardSelectComponent> cardSelectList = new List<CardSelectComponent>();
     private List<CardBaseComponent> cardBaseList = new List<CardBaseComponent>();
     private int picUpCardIndex = -1;
 
-    public CardSelectSystem(GameEvent gameEvent, GameObject player, GameObject enemy)
+    public CardSelectSystem(GameEvent gameEvent, Movement movement, ObjectPool objectPool, GameObject player, GameObject enemy, Transform trash)
     {
+        this.gameEvent = gameEvent;
+        this.movement = movement;
+        this.objectPool = objectPool;
         this.playerObject = player;
         this.enemyObject = enemy;
+        this.trashTransform = trash;
         gameEvent.AddComponentList += AddComponentList;
         gameEvent.RemoveComponentList += RemoveComponentList;
     }
@@ -32,6 +41,20 @@ public class CardSelectSystem
         {
             CardSelectComponent cardSelect = cardSelectList[i];
             CardBaseComponent cardBase = cardBaseList[i];
+
+            if (cardSelect.AttackEffectList.Count > 0)
+            {
+                List<int> indexList = new List<int>();
+                cardSelect.AttackEffectList.ForEach(x =>
+                {
+                    if (x.MoveNext()) return;
+                    indexList.Add(cardSelect.AttackEffectList.IndexOf(x));
+                    return;
+                });
+
+                indexList.ForEach(x => cardSelect.AttackEffectList.RemoveAt(x));
+            }
+
             if (!cardSelect.gameObject.activeSelf) continue;
 
             RectTransform rectTransform = cardBase.GetComponent<RectTransform>();
@@ -71,6 +94,7 @@ public class CardSelectSystem
             if (characterBase.ManaPoint < cardBase.CostPoint) continue;
             DamageComponent damage = enemyObject.GetComponent<DamageComponent>();
             damage.DamagePoint = characterBase.AttackPoint * cardBase.AttackPoint;
+            GenerateAttackEffect(cardSelect);
             characterBase.ManaPoint -= cardBase.CostPoint;
             cardSelect.LiftPosition = Vector3.zero;
             cardSelect.gameObject.SetActive(false);
@@ -123,6 +147,43 @@ public class CardSelectSystem
         if (crossCheck > 0) return false;
 
         return true;
+    }
+
+    private void GenerateAttackEffect(CardSelectComponent cardSelect)
+    {
+        cardSelect.AttackEffect = objectPool.GetGameObject(cardSelect.AttackEffectPrefab);
+        cardSelect.AttackEffect.SetActive(true);
+        cardSelect.AttackEffect.transform.SetParent(cardSelect.EffectRoot.transform);
+        Vector3 tempPos = cardSelect.transform.position + new Vector3(0, 0, 5);
+        tempPos = Camera.main.ScreenToWorldPoint(new Vector3(tempPos.x, tempPos.y, 0.1f));
+        cardSelect.AttackEffect.transform.position = new Vector3(tempPos.x, tempPos.y, 0);
+        cardSelect.AttackEffect.transform.localScale = new Vector3(1, 1, 1);
+        PlayerAttackEffectComponent playerAttack = cardSelect.AttackEffect.GetComponent<PlayerAttackEffectComponent>();
+        playerAttack.StartPosition = new Vector3(tempPos.x, tempPos.y, 0);
+        tempPos = trashTransform.position + new Vector3(0, 0, 10);
+        tempPos = Camera.main.ScreenToWorldPoint(new Vector3(tempPos.x, tempPos.y, 0.1f));
+        playerAttack.EndPosition = new Vector3(10, -5.5f, 0);
+        cardSelect.AttackEffectList.Add(AttackEffect(cardSelect, playerAttack));
+    }
+
+    private IEnumerator AttackEffect(CardSelectComponent cardSelect, PlayerAttackEffectComponent playerAttack)
+    {
+        while (true)
+        {
+            playerAttack.Timer += Time.deltaTime;
+            float ratio = (playerAttack.EndPosition.x - playerAttack.StartPosition.x) * (playerAttack.Timer / playerAttack.TimerLimit);
+            Vector3 temp = movement.Parabola(playerAttack.StartPosition, playerAttack.EndPosition, 60, ratio);
+            playerAttack.transform.position = temp;
+            if (playerAttack.Timer >= playerAttack.TimerLimit)
+            {
+                playerAttack.Timer = 0;
+                gameEvent.ReleaseObject(playerAttack.gameObject);
+                // gameEvent.transform.position = playerAttack.StartPosition;
+                yield break;
+            }
+
+            yield return new WaitForSeconds(Time.deltaTime);
+        }
     }
 
     private void AddComponentList(GameObject gameObject)
